@@ -1,0 +1,50 @@
+name: Generate YouTube Short
+
+on:
+  # Run manually from the Actions tab
+  workflow_dispatch:
+    inputs:
+      script_file:
+        description: "Path to the scene JSON"
+        required: true
+        default: "scripts/v8-engine.json"
+  # Run automatically when a script is added or changed
+  push:
+    paths:
+      - "scripts/**.json"
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Generate voiceover, visuals, and video
+        env:
+          # Add these under Settings > Secrets and variables > Actions
+          TTS_API_KEY: ${{ secrets.TTS_API_KEY }}
+          IMAGE_VIDEO_API_KEY: ${{ secrets.IMAGE_VIDEO_API_KEY }}
+          SCRIPT_FILE: ${{ github.event.inputs.script_file || 'scripts/v8-engine.json' }}
+        run: python generate.py "$SCRIPT_FILE"
+
+      - name: Upload finished video
+        uses: actions/upload-artifact@v4
+        with:
+          name: youtube-short
+          path: output/
+          if-no-files-found: error
